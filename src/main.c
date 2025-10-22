@@ -4,12 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifndef BUFFER_SIZE
-# define BUFFER_SIZE 4096
-#endif
-
-#ifndef FRAME_BUFFER_SIZE
-# define FRAME_BUFFER_SIZE 4096
+#ifndef BUFFER_CAP
+# define BUFFER_CAP 4096
 #endif
 
 #define FONT_PATH "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
@@ -24,12 +20,12 @@ typedef struct	wm_s
 	int				h;
 }					wm_t;
 
-typedef struct tm_s
+typedef struct buffer_s
 {
-	char	buffer[BUFFER_SIZE];
-	char	*pindex;
-	char	*cursor;
-}				tm_t;
+	char			buffer[BUFFER_CAP];
+	size_t			size;
+	size_t			cursor;
+}				buffer_t;
 
 SDL_Rect draw_text(wm_t wm, const char* text, int x, int y, SDL_Color color) 
 {
@@ -73,75 +69,90 @@ wm_t init_window_manager(char const *str)
 	return wm;
 }
 
-int wc(char *str, int delim)
-{
-	int	rtn;
 
-	rtn = 0;
-	while (str && *str)
-	{
-		while (*str == delim)
-			str++;
-		rtn += *str != 0;
-		str = strchr(str, delim);
-	}
-	return (rtn);
+int insert_key(buffer_t *buffer, int key)
+{
+  if (buffer->size >= BUFFER_CAP - 1)
+	  return 1;
+  memmove(buffer->buffer + buffer->cursor + 1, buffer->buffer + buffer->cursor, buffer->size - buffer->cursor);
+  buffer->buffer[buffer->cursor] = key;
+  return 0;
 }
 
-char **split(char *str, int delim, int *count)
+char *sub_str(const char *str, int pos, int end_pos)
 {
-	char **rtn;
-	int		wc_c;
-	int		i;
+  	char *rtn;
+  	int	size;
 
-	wc_c = wc(str, delim);
-	*count = wc_c;
-	rtn = (char **)malloc(wc_c * sizeof(char *));
-	if (!rtn)
-		return NULL;
-	i = 0;
-	while (i < wc_c)
-	{
-		
-	}
+  	size = end_pos - pos + 1;
+	rtn = calloc(size, sizeof(char));
+  	memmove(rtn, str + pos, end_pos);
+  	rtn[size - 1] = 0;
+	return rtn;
 }
 
-void draw_lines(wm_t wm, tm_t tm)
+int draw_lines(wm_t wm, buffer_t buffer)
 {
-	char **lines;
-	int	 count;
-	
+  SDL_Color color = {255, 255, 255, 255};
+  char *stop;
+  char *str = strdup(buffer.buffer);
+  char *tmp = str;
+  char *temp = NULL;
+  int	i = 0;
 
-	lines = split(tm.buffer, &count);
+  while (str && *str)
+  {
 
-
+	stop = strchr(str, '\n');
+	if (!stop)
+	{
+	  draw_text(wm, str, 0, i*15, color);
+	  break;
+	}
+   	temp = sub_str(str, 0, (size_t)(stop - str));
+	draw_text(wm, temp, 0, i*15, color);
+  	free(temp);
+	str = stop + 1;
+	i++;
+  }
+  free(tmp);
+  return 0;
 }
 
-void handle_buffer(tm_t *tm, int key)
+void key_handler(int key, buffer_t *buffer)
 {
-	if (key == '\b')
+  switch(key){
+  case '\b':
 	{
-		tm->cursor--;
-		*tm->cursor = ' ';
+	  if (buffer->size && buffer->cursor)
+	  {
+		buffer->buffer[buffer->cursor - 1] = 0;
+		buffer->cursor--;
+		buffer->size--;
+	  }
+	  break;
 	}
-	else
+  default:
 	{
-		*tm->cursor = key;
-		tm->cursor++;
-		tm->pindex++;
+	  if (!key)
+		break;
+	  printf("key = %d\n", key);
+	  insert_key(buffer, key);
+	  buffer->size++;
+	  buffer->cursor++;
 	}
+  }
 }
+
 
 int main() {
 
-	wm_t	wm;
-	tm_t	tm;
-	int		loop;
-	int		key;
+	wm_t		wm;
+	buffer_t	buffer;
+	int			loop;
+	int			key;
 
-	memset(&tm, 0, sizeof(wm_t));
-	tm.cursor = tm.buffer;
-	tm.pindex = tm.buffer;
+	memset(&buffer, 0, sizeof(buffer_t));
 	wm = init_window_manager("yayterm");
 	if (!wm.win || !wm.ren || !wm.font)
 		{perror("wm"); exit(1);}
@@ -161,12 +172,13 @@ int main() {
             }
 			else if (wm.event.type == SDL_KEYDOWN)
 			{
-				key = handle_key(wm.event.key.keysym.sym, wm.event.key.keysym.mod);
-				handle_buffer(&tm, key);
+			  	key = handle_key(wm.event.key.keysym.sym, wm.event.key.keysym.mod);
+				key_handler(key, &buffer);
 			}
 		}
 		SDL_RenderClear(wm.ren);
-		draw_lines(wm, tm);
+		//		draw_text(wm, buffer.buffer, 0, 0, color);
+		draw_lines(wm, buffer);
 		SDL_SetRenderDrawColor(wm.ren, 0, 0, 0, 255);
         SDL_RenderPresent(wm.ren);
     }
@@ -176,7 +188,4 @@ int main() {
     SDL_Quit();
     return 0;
 }
-
-
-
 
