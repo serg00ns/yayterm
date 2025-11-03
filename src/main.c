@@ -1,5 +1,5 @@
 #include "yayterm.h"
-
+ 
 #include <SDL2/SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,7 +29,7 @@ typedef struct buffer_s
 
 SDL_Rect draw_text(wm_t wm, const char* text, int x, int y, SDL_Color color) 
 {
-	SDL_Rect		dest;
+  SDL_Rect		dest;
 	SDL_Surface		*surface;
 	SDL_Texture		*texture;
 
@@ -119,6 +119,12 @@ int draw_lines(wm_t wm, buffer_t buffer)
   return 0;
 }
 
+void draw_screen(wm_t wm, buffer_t buffer)
+{
+  draw_lines(wm, buffer);
+  //draw_cursor(buffer->)
+}
+
 void key_handler(int key, buffer_t *buffer)
 {
   switch(key){
@@ -126,22 +132,23 @@ void key_handler(int key, buffer_t *buffer)
 	{
 	  if (buffer->size && buffer->cursor)
 	  {
-		buffer->buffer[buffer->cursor - 1] = 0;
-		buffer->cursor--;
-		buffer->size--;
+		  buffer->buffer[buffer->cursor] = 0;
+		  buffer->cursor--;
+		  buffer->size--;
 	  }
 	  break;
 	}
   default:
 	{
 	  if (!key)
-		break;
+		  break;
 	  printf("key = %d\n", key);
 	  insert_key(buffer, key);
 	  buffer->size++;
 	  buffer->cursor++;
 	}
   }
+  insert_key(buffer, '_');
 }
 
 
@@ -178,7 +185,7 @@ int main() {
 		}
 		SDL_RenderClear(wm.ren);
 		//		draw_text(wm, buffer.buffer, 0, 0, color);
-		draw_lines(wm, buffer);
+		draw_screen(wm, buffer);
 		SDL_SetRenderDrawColor(wm.ren, 0, 0, 0, 255);
         SDL_RenderPresent(wm.ren);
     }

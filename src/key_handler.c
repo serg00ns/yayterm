@@ -1,4 +1,3 @@
-
 #include "yayterm.h"
 
 int handle_key(SDL_Keycode key, SDL_Keymod mod)
